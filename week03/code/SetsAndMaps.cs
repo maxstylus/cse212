@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 
@@ -29,30 +32,35 @@ public static class SetsAndMaps
         List<string> pairs = new List<string>();
         HashSet<string> wordSet = new HashSet<string>();
 
-        // Normalize and load into set
+        // Normalize all words and add to set
         foreach (string word in words)
         {
             string cleaned = Normalize(word);
+            if (cleaned.Length != 2) // Only two-letter words  
+                continue;
             wordSet.Add(cleaned);
         }
 
-        foreach (string word in words)
+        foreach (string word in wordSet.ToList())  
         {
-            string cleaned = Normalize(word);
-
-            if (!wordSet.Contains(cleaned))
+            if (!wordSet.Contains(word))
                 continue;
 
-            string reversed = Reverse(cleaned);
+            string reversed = Reverse(word);
 
-            if (wordSet.Contains(reversed) && cleaned != reversed)
+            // Only add pairs that are not palindromes
+            if (wordSet.Contains(reversed) && word != reversed)
             {
-                pairs.Add($"{cleaned} & {reversed}");
-                wordSet.Remove(cleaned);
+                pairs.Add($"{word} & {reversed}");
+
+                // Prevent duplicates
+                wordSet.Remove(word);
                 wordSet.Remove(reversed);
             }
         }
+
         return pairs.ToArray();
+
     }
 
     private static string Reverse(string word)
@@ -163,8 +171,8 @@ public static class SetsAndMaps
         using var jsonStream = client.Send(getRequestMessage).Content.ReadAsStream();
         using var reader = new StreamReader(jsonStream);
         var json = reader.ReadToEnd();
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         var featureCollection = JsonSerializer.Deserialize<FeatureCollection>(json, options);
 
         // TODO Problem 5:
@@ -172,6 +180,26 @@ public static class SetsAndMaps
         // on those classes so that the call to Deserialize above works properly.
         // 2. Add code below to create a string out each place a earthquake has happened today and its magitude.
         // 3. Return an array of these string descriptions.
-        return [];
+
+        if (featureCollection?.Features == null)
+            return Array.Empty<string>();
+
+        var results = new List<string>();
+
+        foreach (var feature in featureCollection.Features)
+        {
+            if (feature.Properties != null)
+            {
+                var place = feature?.Properties?.Place;
+                var mag = feature?.Properties?.Mag;
+
+                if (place != null && mag != null)
+                {
+                    results.Add($"{place} - Mag {mag}");
+                }
+            }
+        } 
+
+        return results.ToArray();
     }
 }
